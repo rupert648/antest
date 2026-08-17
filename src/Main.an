@@ -1,5 +1,5 @@
 import Std.Throw.Throw, throw, catch
-import AnteTest.Test.tassert, tassert_eq, AssertionError, run_tests, register_test
+import Antest.Test.tassert, tassert_eq, AssertionError, run_tests, register_test
 
 my_test () : Unit can Throw AssertionError =
     tassert false (Some "this should blowup")

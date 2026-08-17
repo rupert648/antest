@@ -1,7 +1,7 @@
 import Std.Throw.Throw, throw, catch
 import Std.Stream.Stream, iter, emit, all, filter, stream_fn
 import Std.Vec.Vec, stream_vec
-import AnteTest.Colour.red, green, bold
+import Antest.Colour.red, green, bold
 
 export AssertionError, print_assertion_error, TestFunction, Test, TestRunner,
     TestResult, print_test_result, tassert, tassert_eq, Tests, run_tests, register_test
