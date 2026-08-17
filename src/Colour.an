@@ -1,0 +1,28 @@
+export colour, black, red, green, yellow, blue, magenta, cyan, white, bright_black, bright_red,
+    bright_green, bright_yellow, bright_blue, bright_magenta, bright_cyan, bright_white, bold,
+    dim, underline
+
+colour (code: String) (text: String): String =
+    "\x1b[" ++ code ++ "m" ++ text ++ "\x1b[0m"
+
+black text = colour "30" text
+red text = colour "31" text
+green text = colour "32" text
+yellow text = colour "33" text
+blue text = colour "34" text
+magenta text = colour "35" text
+cyan text = colour "36" text
+white text = colour "37" text
+
+bright_black text = colour "90" text
+bright_red text = colour "91" text
+bright_green text = colour "92" text
+bright_yellow text = colour "93" text
+bright_blue text = colour "94" text
+bright_magenta text = colour "95" text
+bright_cyan text = colour "96" text
+bright_white text = colour "97" text
+
+bold text = colour "1" text
+dim text = colour "2" text
+underline text = colour "4" text

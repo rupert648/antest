@@ -1,0 +1,147 @@
+import Std.Throw.Throw, throw, catch
+import Std.Stream.Stream, iter, emit, all, filter, stream_fn
+import Std.Vec.Vec, stream_vec
+import AnteTest.Colour.red, green, bold
+
+export AssertionError, print_assertion_error, TestFunction, Test, TestRunner,
+    TestResult, print_test_result, tassert, tassert_eq, Tests, run_tests, register_test
+
+type AssertionError =
+    error_message: String
+
+impl print_assertion_error: Print AssertionError with
+    print error =
+        println error.error_message
+
+type TestFunction = fn -> Unit can Throw AssertionError
+type Test =
+    test_body: TestFunction
+    test_name: String
+    
+type TestRunner =
+    tests: Vec Test
+
+TestRunner.new (): TestRunner =
+    TestRunner (Vec.empty ())
+
+TestRunner.test (runner: mut TestRunner) (test_func: TestFunction) (test_name: String): mut TestRunner =
+    runner.tests.push (Test test_func test_name)
+    runner
+
+type TestResult =
+    | Passed String
+    | Failed String AssertionError
+
+TestResult.passed (tr: ref TestResult): Bool =
+    match deref tr
+    | TestResult.Passed _ -> true
+    | TestResult.Failed _ _ -> false
+
+impl print_test_result: Print TestResult with
+    print result =
+        match deref result
+        | Passed name ->
+            print (bold (green "PASS"))
+            print ": "
+            print name
+            print "\n"
+        | Failed name _ ->
+            print (bold (red "FAIL"))
+            print ": "
+            println name
+        ()
+
+print_final_output (results: Vec TestResult) =
+    total_test = results.len()
+    failures = results
+        |> filter (fn tr -> not (TestResult.passed tr))
+        |> Vec.of
+
+    numb_failed = failures.len ()
+    numb_passed = total_test - numb_failed
+
+    has_failures = not (failures.is_empty ())
+
+    if has_failures then
+        println ""
+        println (bold (red "failures:"))
+        println ""
+        iter failures fn (failure: TestResult) ->
+            match failure
+            | TestResult.Failed test_name error ->
+                print "---- "
+                print (bold test_name)
+                println " ----"
+                print error
+                println ""
+            // TODO: impossible, assertion?
+            | _ -> ()
+    else
+        println ""
+
+    print "test result: "
+    if has_failures then
+        print (bold (red "FAILED"))
+    else
+        print (bold (green "SUCCESS"))
+
+    print ". "
+
+    print numb_passed
+    print " passed; "
+    print numb_failed
+    println " failed"
+            
+
+
+TestRunner.run (runner: TestRunner) =
+    numb_tests = runner.tests.len ()
+
+    print "running "
+    // interpolation for usz not working
+    print numb_tests
+    println " tests:"
+
+    var test_results = Vec.empty ()
+    iter runner.tests fn (test: Test) ->
+        test_name = clone test.test_name
+        test_result = match (catch test.test_body)
+            | Ok () ->
+                TestResult.Passed test_name
+            | Err error ->
+                TestResult.Failed test_name error
+
+        print test_result
+        test_results.push test_result
+    print_final_output test_results
+
+build_additional_message (context: Maybe String) =
+    match context
+        | Some s -> ": " ++ s
+        | None -> ""
+
+tassert (predicate: Bool) (context: Maybe String) can Throw AssertionError =
+    if not predicate then
+        throw (AssertionError ("Expected predicate to be truthy" ++ build_additional_message context))
+
+// TODO add debug trait here to distinguish print ?
+tassert_eq (left: s) (right: s) (context: Maybe String) {Eq s} {Cast s String} can Throw AssertionError =
+    if not (left == right) then
+        left_string: String = cast left
+        right_string: String = cast right
+        message = "Expected values to match" ++ build_additional_message context ++ "\n  left:  " ++ left_string ++ "\n  right: " ++ right_string
+
+        throw (AssertionError message)
+
+effect Tests =
+    register_test: fn String TestFunction -> Unit
+
+run_tests (suite: fn Unit => Unit can Tests): Unit =
+    var runner = TestRunner.new ()
+
+    handler h for register_test name body ->
+        runner.test body name
+        resume ()
+
+    suite ()
+    runner.run ()

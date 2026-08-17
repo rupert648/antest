@@ -1,0 +1,17 @@
+import Std.Throw.Throw, throw, catch
+import AnteTest.Test.tassert, tassert_eq, AssertionError, run_tests, register_test
+
+my_test () : Unit can Throw AssertionError =
+    tassert false (Some "this should blowup")
+
+my_test_success () : Unit can Throw AssertionError =
+    tassert true None
+
+my_test_compare () : Unit can Throw AssertionError =
+    tassert_eq 1 2 (Some "Please Work!")
+    
+main () =
+    run_tests do
+        register_test "failing_test" my_test
+        register_test "successful_test" my_test_success
+        register_test "comparison test" my_test_compare
