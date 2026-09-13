@@ -1,4 +1,4 @@
-import Std.Throw.Throw, throw, catch
+import Std.Throw.Throw, throw
 import Std.Stream.Stream, iter, emit, all, filter, stream_fn
 import Std.Vec.Vec, stream_vec
 import Antest.Colour.red, green, bold
@@ -13,7 +13,7 @@ impl print_assertion_error: Print AssertionError with
     print error =
         println error.error_message
 
-type TestFunction = fn -> Unit can Throw AssertionError
+type TestFunction = fn -> Unit can Throw AssertionError, Fs
 type Test =
     test_body: TestFunction
     test_name: String
@@ -24,7 +24,7 @@ type TestRunner =
 TestRunner.new (): TestRunner =
     TestRunner (Vec.empty ())
 
-TestRunner.test (runner: mut TestRunner) (test_func: TestFunction) (test_name: String): mut TestRunner =
+TestRunner.test (runner: mut TestRunner) (test_func: TestFunction) (test_name: String): mut TestRunner can Fs =
     runner.tests.push (Test test_func test_name)
     runner
 
@@ -51,7 +51,7 @@ impl print_test_result: Print TestResult with
             println name
         ()
 
-print_final_output (results: Vec TestResult) =
+print_final_output (results: Vec TestResult): Unit can Fs =
     total_test = results.len()
     failures = results
         |> filter (fn tr -> not (TestResult.passed tr))
@@ -94,7 +94,7 @@ print_final_output (results: Vec TestResult) =
             
 
 
-TestRunner.run (runner: TestRunner) =
+TestRunner.run (runner: TestRunner): Unit can Fs =
     numb_tests = runner.tests.len ()
 
     print "running "
@@ -105,11 +105,10 @@ TestRunner.run (runner: TestRunner) =
     var test_results = Vec.empty ()
     iter runner.tests fn (test: Test) ->
         test_name = clone test.test_name
-        test_result = match (catch test.test_body)
-            | Ok () ->
-                TestResult.Passed test_name
-            | Err error ->
-                TestResult.Failed test_name error
+        test_result =
+            handler h for throw error -> TestResult.Failed test_name error
+            test.test_body ()
+            TestResult.Passed test_name
 
         print test_result
         test_results.push test_result
@@ -125,7 +124,13 @@ tassert (predicate: Bool) (context: Maybe String) can Throw AssertionError =
         throw (AssertionError ("Expected predicate to be truthy" ++ build_additional_message context))
 
 // TODO add debug trait here to distinguish print ?
-tassert_eq (left: s) (right: s) (context: Maybe String) {Eq s} {Cast s String} can Throw AssertionError =
+tassert_eq
+    (left: s)
+    (right: s)
+    (context: Maybe String)
+    {Eq s eq_effect}
+    {Cast s String cast_effect}
+    : Unit can Throw AssertionError, eq_effect, cast_effect =
     if not (left == right) then
         left_string: String = cast left
         right_string: String = cast right
@@ -136,7 +141,7 @@ tassert_eq (left: s) (right: s) (context: Maybe String) {Eq s} {Cast s String} c
 effect Tests =
     register_test: fn String TestFunction -> Unit
 
-run_tests (suite: fn Unit => Unit can Tests): Unit =
+run_tests (suite: fn Unit => Unit can Tests): Unit can Fs =
     var runner = TestRunner.new ()
 
     handler h for register_test name body ->
