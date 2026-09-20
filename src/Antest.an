@@ -9,7 +9,7 @@ export AssertionError, print_assertion_error, TestFunction, Test, TestRunner,
 type AssertionError =
     error_message: String
 
-impl print_assertion_error: Print AssertionError with
+impl print_assertion_error: Display AssertionError pure with
     print error =
         println error.error_message
 
@@ -24,7 +24,7 @@ type TestRunner =
 TestRunner.new (): TestRunner =
     TestRunner (Vec.empty ())
 
-TestRunner.test (runner: mut TestRunner) (test_func: TestFunction) (test_name: String): mut TestRunner can Fs =
+TestRunner.test (runner: mut TestRunner) (test_func: TestFunction) (test_name: String): mut TestRunner can Panic =
     runner.tests.push (Test test_func test_name)
     runner
 
@@ -37,7 +37,7 @@ TestResult.passed (tr: ref TestResult): Bool =
     | TestResult.Passed _ -> true
     | TestResult.Failed _ _ -> false
 
-impl print_test_result: Print TestResult with
+impl print_test_result: Display TestResult pure with
     print result =
         match deref result
         | Passed name ->
@@ -51,7 +51,7 @@ impl print_test_result: Print TestResult with
             println name
         ()
 
-print_final_output (results: Vec TestResult): Unit can Fs =
+print_final_output (results: Vec TestResult): Unit can Print, Panic =
     total_test = results.len()
     failures = results
         |> filter (fn tr -> not (TestResult.passed tr))
@@ -94,7 +94,7 @@ print_final_output (results: Vec TestResult): Unit can Fs =
             
 
 
-TestRunner.run (runner: TestRunner): Unit can Fs =
+TestRunner.run (runner: TestRunner): Unit can Fs, Print, Panic =
     numb_tests = runner.tests.len ()
 
     print "running "
@@ -142,11 +142,13 @@ effect Tests =
     register_test: fn String TestFunction -> Unit
 
 run_tests (suite: fn Unit => Unit can Tests): Unit can Fs =
-    var runner = TestRunner.new ()
+    print_to_stdout do
+      abort_on_panic do
+        var runner = TestRunner.new ()
 
-    handler h for register_test name body ->
-        runner.test body name
-        resume ()
+        handler h for register_test name body ->
+            runner.test body name
+            resume ()
 
-    suite ()
-    runner.run ()
+        suite ()
+        runner.run ()
