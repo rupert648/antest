@@ -105,10 +105,11 @@ TestRunner.run (runner: TestRunner): Unit can Fs, Print, Panic =
     var test_results = Vec.empty ()
     iter runner.tests fn (test: Test) ->
         test_name = clone test.test_name
-        test_result =
-            handler h for throw error -> TestResult.Failed test_name error
+
+        test_result = handle
             test.test_body ()
             TestResult.Passed test_name
+        | throw error -> TestResult.Failed test_name error
 
         print test_result
         test_results.push test_result
@@ -145,10 +146,9 @@ run_tests (suite: fn Unit => Unit can Tests): Unit can Fs =
     print_to_stdout do
       abort_on_panic do
         var runner = TestRunner.new ()
-
-        handler h for register_test name body ->
+        handle
+            suite ()
+            runner.run ()
+        | register_test name body ->
             runner.test body name
             resume ()
-
-        suite ()
-        runner.run ()
